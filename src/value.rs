@@ -1,3 +1,7 @@
+use std::cmp::{Eq, Ord, PartialEq, PartialOrd};
+use std::convert::{From, Into};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
+
 /// A `Value` is used to hold several types of information: number, keyword, register id, and a
 /// label id. Each type is used by an [`Exa`] to perform their tasks. Whether it is storing keywords
 /// from a [`Register`] to a [`File`], or asking their [`Program`] to jump to a specific label. Or
@@ -15,8 +19,37 @@ pub enum Value {
     LabelId(String),
 }
 
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Number(lhs), Value::Number(rhs)) => lhs == rhs,
+            (Value::Keyword(lhs), Value::Keyword(rhs)) => lhs == rhs,
+            _ => panic!("Cannot check equivalence for {self:?} and {other:?}!"),
+        }
+    }
+}
+
+impl Eq for Value {}
+
+impl From<isize> for Value {
+    fn from(input: isize) -> Self {
+        Value::Number(input)
+    }
+}
+
+impl Into<isize> for Value {
+    fn into(self) -> isize {
+        match self {
+            Self::Number(number) => number,
+            _ => panic!("Cannot convert {self:?} into an isize!"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::Value;
+
     #[test]
     fn test_new() {
         unimplemented!()
@@ -104,17 +137,31 @@ mod tests {
 
     #[test]
     fn test_equal_to_number() {
-        unimplemented!()
+        let first = Value::Number(128);
+        let second = Value::Number(128);
+        let third = Value::Number(-128);
+
+        assert_eq!(first, second);
+        assert_ne!(first, third);
     }
 
     #[test]
     fn test_equal_to_keyword() {
-        unimplemented!()
+        let first = Value::Keyword("first".to_string());
+        let second = Value::Keyword("first".to_string());
+        let third = Value::Keyword("third".to_string());
+
+        assert_eq!(first, second);
+        assert_ne!(first, third);
     }
 
     #[test]
+    #[should_panic]
     fn test_equal_to_non_number_non_keyword_panics() {
-        unimplemented!()
+        let first = Value::Keyword("first".to_string());
+        let second = Value::Number(128);
+
+        assert_eq!(first, second);
     }
 
     #[test]
@@ -129,12 +176,20 @@ mod tests {
 
     #[test]
     fn test_from_isize_to_number() {
-        unimplemented!()
+        let number = Value::Number(-127);
+
+        let new_number: Value = Value::from(-127);
+
+        assert_eq!(number, new_number);
     }
 
     #[test]
-    fn test_from_number_to_isize() {
-        unimplemented!()
+    fn test_to_from_number_and_isize() {
+        let number = Value::Number(-127);
+
+        let number_value: isize = number.into();
+
+        assert_eq!(-127, number_value);
     }
 
     #[test]
