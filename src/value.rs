@@ -19,6 +19,41 @@ pub enum Value {
     LabelId(String),
 }
 
+impl Value {
+    pub fn new_number_or_register_id(input: &str) -> Result<Self, ValueParseError> {
+        match input.parse::<Value>() {
+            Ok(Self::Number(number)) => Ok(Self::Number(number)),
+            Ok(Self::Keyword(keyword)) => Self::new_register_id(&keyword),
+            _ => Err(ValueParseError),
+        }
+    }
+
+    pub fn new_register_id(input: &str) -> Result<Self, ValueParseError> {
+        let is_valid_hardware_register_id = input.starts_with('#') && (input.len() == 5);
+
+        let has_valid_single_char = input
+            .chars()
+            .nth(0)
+            .map(|c| !c.is_ascii_digit() && (c != '#'))
+            .unwrap_or(false);
+        let is_valid_exa_register_id = has_valid_single_char && (input.len() == 1);
+
+        if is_valid_hardware_register_id || is_valid_exa_register_id {
+            Ok(Value::RegisterId(input.to_string()))
+        } else {
+            Err(ValueParseError)
+        }
+    }
+
+    pub fn new_label_id(input: &str) -> Result<Self, ValueParseError> {
+        if input.is_empty() {
+            Err(ValueParseError)
+        } else {
+            Ok(Value::LabelId(input.to_string()))
+        }
+    }
+}
+
 /// A dummy struct to indicate that there was an error on the [`FromStr`] implementations.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ValueParseError;
@@ -66,12 +101,102 @@ mod tests {
     use super::Value;
 
     #[test]
-    fn test_parse_from_str_to_number() {
-        let number_string = "-127".to_string();
+    fn test_new_number_or_register_id() {
+        let number = "-9999";
+        let hardware_register_id = "#NERV";
+        let exa_register_id = "X";
 
-        let number = number_string.parse().unwrap();
+        let expected_number_result = Ok(Value::Number(-9999));
+        let expected_hardware_register_id_result = Ok(Value::RegisterId("#NERV".to_string()));
+        let expected_exa_register_id_result = Ok(Value::RegisterId("X".to_string()));
 
-        assert_eq!(Value::Number(-127), number);
+        let number_result = Value::new_number_or_register_id(number);
+        let hardware_register_id_result = Value::new_number_or_register_id(hardware_register_id);
+        let exa_register_id_result = Value::new_number_or_register_id(exa_register_id);
+
+        assert_eq!(number_result, expected_number_result);
+        assert_eq!(
+            hardware_register_id_result,
+            expected_hardware_register_id_result
+        );
+        assert_eq!(exa_register_id_result, expected_exa_register_id_result);
+    }
+
+    #[test]
+    fn test_new_number_or_register_id_err() {
+        let invalid_id1 = "#NERVX";
+        let invalid_id2 = "";
+        let invalid_id3 = "#";
+        let invalid_id4 = "#NER";
+
+        let result1 = Value::new_number_or_register_id(invalid_id1);
+        let result2 = Value::new_number_or_register_id(invalid_id2);
+        let result3 = Value::new_number_or_register_id(invalid_id3);
+        let result4 = Value::new_number_or_register_id(invalid_id4);
+
+        assert!(result1.is_err());
+        assert!(result2.is_err());
+        assert!(result3.is_err());
+        assert!(result4.is_err());
+    }
+
+    #[test]
+    fn test_new_register_id() {
+        let hardware_register_id = "#NERV";
+        let exa_register_id = "X";
+
+        let expected_hardware_register_id_result = Ok(Value::RegisterId("#NERV".to_string()));
+        let expected_exa_register_id_result = Ok(Value::RegisterId("X".to_string()));
+
+        let hardware_register_id_result = Value::new_register_id(hardware_register_id);
+        let exa_register_id_result = Value::new_register_id(exa_register_id);
+
+        assert_eq!(
+            hardware_register_id_result,
+            expected_hardware_register_id_result
+        );
+        assert_eq!(exa_register_id_result, expected_exa_register_id_result);
+    }
+
+    #[test]
+    fn test_new_register_id_err() {
+        let invalid_id1 = "#NERVX";
+        let invalid_id2 = "1";
+        let invalid_id3 = "";
+        let invalid_id4 = "#";
+        let invalid_id5 = "#NER";
+
+        let result1 = Value::new_register_id(invalid_id1);
+        let result2 = Value::new_register_id(invalid_id2);
+        let result3 = Value::new_register_id(invalid_id3);
+        let result4 = Value::new_register_id(invalid_id4);
+        let result5 = Value::new_register_id(invalid_id5);
+
+        assert!(result1.is_err());
+        assert!(result2.is_err());
+        assert!(result3.is_err());
+        assert!(result4.is_err());
+        assert!(result5.is_err());
+    }
+
+    #[test]
+    fn test_new_labal_id() {
+        let id = "JUMP_TO_THIS";
+
+        let expected = Ok(Value::LabelId("JUMP_TO_THIS".to_string()));
+
+        let result = Value::new_label_id(id);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_new_label_id_err() {
+        let invalid_id = "";
+
+        let result = Value::new_label_id(invalid_id);
+
+        assert!(result.is_err());
     }
 
     #[test]

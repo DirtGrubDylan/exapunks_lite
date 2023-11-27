@@ -2,8 +2,8 @@ pub mod exa;
 pub mod instruction;
 pub mod value;
 
-use crate::value::Value;
 use crate::instruction::Instruction;
+use crate::value::Value;
 
 fn main() {
     let lhs = Value::Number(-127);
