@@ -38,8 +38,8 @@ impl Into<isize> for Value {
     }
 }
 
-impl Into<String> for Value {
-    fn into(self) -> String {
+impl ToString for Value {
+    fn to_string(&self) -> String {
         match self {
             Self::Number(number) => number.to_string(),
             Self::Keyword(keyword) => keyword.clone(),
@@ -122,7 +122,7 @@ mod tests {
     fn test_from_number_to_string() {
         let number = Value::Number(-127);
 
-        let number_string: String = number.into();
+        let number_string: String = number.to_string();
 
         assert_eq!("-127".to_string(), number_string);
     }
@@ -131,7 +131,7 @@ mod tests {
     fn test_from_non_number_to_string() {
         let keyword = Value::Keyword("keyword".to_string());
 
-        let keyword_string: String = keyword.into();
+        let keyword_string: String = keyword.to_string();
 
         assert_eq!("keyword".to_string(), keyword_string);
     }
