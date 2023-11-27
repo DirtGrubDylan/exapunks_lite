@@ -1,4 +1,5 @@
 pub mod value;
+pub mod exa;
 
 use value::Value;
 
