@@ -77,7 +77,7 @@ impl Value {
     ///
     /// A valid register id is either:
     ///
-    /// * A single non-numeric character
+    /// * A single non-numeric character that is 'X', 'T', 'F', or 'M'
     /// * A string that has 5 characters and starts with '#'
     ///
     /// # Errors
@@ -111,11 +111,7 @@ impl Value {
     pub fn new_register_id(input: &str) -> Result<Self, ParseError> {
         let is_valid_hardware_register_id = input.starts_with('#') && (input.len() == 5);
 
-        let has_valid_single_char = input
-            .chars()
-            .next()
-            .map_or(false, |c| !c.is_ascii_digit() && (c != '#'));
-        let is_valid_exa_register_id = has_valid_single_char && (input.len() == 1);
+        let is_valid_exa_register_id = matches!(input, "X" | "T" | "F" | "M");
 
         if is_valid_hardware_register_id || is_valid_exa_register_id {
             Ok(Value::RegisterId(input.to_string()))
@@ -260,18 +256,21 @@ mod tests {
         let invalid_id3 = "";
         let invalid_id4 = "#";
         let invalid_id5 = "#NER";
+        let invalid_id6 = "N";
 
         let result1 = Value::new_register_id(invalid_id1);
         let result2 = Value::new_register_id(invalid_id2);
         let result3 = Value::new_register_id(invalid_id3);
         let result4 = Value::new_register_id(invalid_id4);
         let result5 = Value::new_register_id(invalid_id5);
+        let result6 = Value::new_register_id(invalid_id6);
 
         assert!(result1.is_err());
         assert!(result2.is_err());
         assert!(result3.is_err());
         assert!(result4.is_err());
         assert!(result5.is_err());
+        assert!(result6.is_err());
     }
 
     #[test]
