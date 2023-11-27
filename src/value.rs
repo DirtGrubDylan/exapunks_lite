@@ -1,5 +1,5 @@
 use std::cmp::{Eq, Ord, PartialEq, PartialOrd};
-use std::convert::{From, Into};
+use std::convert::From;
 use std::str::FromStr;
 
 /// A `Value` is used to hold several types of information: number, keyword, register id, and a
@@ -13,50 +13,146 @@ use std::str::FromStr;
 /// A [`Register`] can hold on to a number or keyword value.
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub enum Value {
+    /// A number.
     Number(isize),
+    /// A keyword.
     Keyword(String),
+    /// The Id of a [`Register`].
     RegisterId(String),
+    /// The Id of label in the [`Program`].
     LabelId(String),
 }
 
+/// A dummy struct to indicate that there was an error on the [`FromStr`] implementation.
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct ParseError;
+
 impl Value {
-    pub fn new_number_or_register_id(input: &str) -> Result<Self, ValueParseError> {
+    /// Tries to return a [`Value::Number`] or [`Value::RegisterId`] from the given input.
+    ///
+    /// A valid register id is either:
+    ///
+    /// * A single non-numeric character
+    /// * A string that has 5 characters and starts with '#'
+    ///
+    /// # Errors
+    ///
+    /// This will error if the input is empty, is not a valid number, or is not a valid register
+    /// id.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let number = "-9999";
+    /// let hardware_register_id = "#NERV";
+    /// let exa_register_id = "X";
+    /// let empty = "";
+    ///
+    /// let expected_number_result = Ok(Value::Number(-9999));
+    /// let expected_hardware_register_id_result = Ok(Value::RegisterId("#NERV".to_string()));
+    /// let expected_exa_register_id_result = Ok(Value::RegisterId("X".to_string()));
+    ///
+    /// let number_result = Value::new_number_or_register_id(number);
+    /// let hardware_register_id_result = Value::new_number_or_register_id(hardware_register_id);
+    /// let exa_register_id_result = Value::new_number_or_register_id(exa_register_id);
+    /// let empty_result = Value::new_number_or_register_id(exa_register_id);
+    ///
+    /// assert_eq!(number_result, expected_number_result);
+    /// assert_eq!(
+    /// hardware_register_id_result,
+    /// expected_hardware_register_id_result
+    /// );
+    /// assert_eq!(exa_register_id_result, expected_exa_register_id_result);
+    /// assert!(empty_result.is_err());
+    /// ```
+    pub fn new_number_or_register_id(input: &str) -> Result<Self, ParseError> {
         match input.parse::<Value>() {
             Ok(Self::Number(number)) => Ok(Self::Number(number)),
             Ok(Self::Keyword(keyword)) => Self::new_register_id(&keyword),
-            _ => Err(ValueParseError),
+            _ => Err(ParseError),
         }
     }
 
-    pub fn new_register_id(input: &str) -> Result<Self, ValueParseError> {
+    /// Tries to return a [`Value::RegisterId`] from the given input.
+    ///
+    /// A valid register id is either:
+    ///
+    /// * A single non-numeric character
+    /// * A string that has 5 characters and starts with '#'
+    ///
+    /// # Errors
+    ///
+    /// This will error if the input is empty, is a number, or is not a valid register id.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let number = "-9999";
+    /// let hardware_register_id = "#NERV";
+    /// let exa_register_id = "X";
+    /// let empty = "";
+    ///
+    /// let expected_hardware_register_id_result = Ok(Value::RegisterId("#NERV".to_string()));
+    /// let expected_exa_register_id_result = Ok(Value::RegisterId("X".to_string()));
+    ///
+    /// let number_result = Value::new_number_or_register_id(number);
+    /// let hardware_register_id_result = Value::new_number_or_register_id(hardware_register_id);
+    /// let exa_register_id_result = Value::new_number_or_register_id(exa_register_id);
+    /// let empty_result = Value::new_number_or_register_id(exa_register_id);
+    ///
+    /// assert_eq!(
+    /// hardware_register_id_result,
+    /// expected_hardware_register_id_result
+    /// );
+    /// assert_eq!(exa_register_id_result, expected_exa_register_id_result);
+    /// assert!(empty_result.is_err());
+    /// assert!(number_result.is_err());
+    /// ```
+    pub fn new_register_id(input: &str) -> Result<Self, ParseError> {
         let is_valid_hardware_register_id = input.starts_with('#') && (input.len() == 5);
 
         let has_valid_single_char = input
             .chars()
-            .nth(0)
-            .map(|c| !c.is_ascii_digit() && (c != '#'))
-            .unwrap_or(false);
+            .next()
+            .map_or(false, |c| !c.is_ascii_digit() && (c != '#'));
         let is_valid_exa_register_id = has_valid_single_char && (input.len() == 1);
 
         if is_valid_hardware_register_id || is_valid_exa_register_id {
             Ok(Value::RegisterId(input.to_string()))
         } else {
-            Err(ValueParseError)
+            Err(ParseError)
         }
     }
 
-    pub fn new_label_id(input: &str) -> Result<Self, ValueParseError> {
+    /// Tries to return a [`Value::LabelId`] from the given input.
+    ///
+    /// # Errors
+    ///
+    /// This will error if the input is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    ///
+    /// let id = "JUMP_TO_THIS";
+    /// let empty = "";
+    ///
+    /// let expected = Ok(Value::LabelId("JUMP_TO_THIS".to_string()));
+    /// 
+    /// let result = Value::new_label_id(id);
+    /// let empty_result = Value::new_label_id(empty);
+    /// 
+    /// assert_eq!(result, expected);
+    /// assert!(empty_result.is_err());
+    /// ```
+    pub fn new_label_id(input: &str) -> Result<Self, ParseError> {
         if input.is_empty() {
-            Err(ValueParseError)
+            Err(ParseError)
         } else {
             Ok(Value::LabelId(input.to_string()))
         }
     }
 }
-
-/// A dummy struct to indicate that there was an error on the [`FromStr`] implementations.
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct ValueParseError;
 
 impl From<isize> for Value {
     fn from(input: isize) -> Self {
@@ -64,11 +160,11 @@ impl From<isize> for Value {
     }
 }
 
-impl Into<isize> for Value {
-    fn into(self) -> isize {
-        match self {
-            Self::Number(number) => number,
-            _ => panic!("Cannot convert {self:?} into an isize!"),
+impl From<Value> for isize {
+    fn from(input: Value) -> isize {
+        match input {
+            Value::Number(number) => number,
+            _ => panic!("Cannot convert {input:?} into an isize!"),
         }
     }
 }
@@ -85,11 +181,11 @@ impl ToString for Value {
 }
 
 impl FromStr for Value {
-    type Err = ValueParseError;
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.parse::<isize>() {
-            _ if s.is_empty() => Err(ValueParseError),
+            _ if s.is_empty() => Err(ParseError),
             Ok(number) => Ok(Value::Number(number)),
             Err(_) => Ok(Value::Keyword(s.to_string())),
         }

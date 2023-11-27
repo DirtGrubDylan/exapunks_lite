@@ -43,16 +43,16 @@ pub enum Instruction {
     Random(Value, Value, Value),
 }
 
-/// A dummy struct to indicate that there was an error on the [`FromStr`] implementations.
+/// A dummy struct to indicate that there was an error on the [`FromStr`] implementation.
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct InstructionParseError(String);
+pub struct ParseError(String);
 
 impl FromStr for Instruction {
-    type Err = InstructionParseError;
+    type Err = ParseError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let split_input = input.split(' ');
-        let error = Err(InstructionParseError(input.to_string()));
+        let _split_input = input.split(' ');
+        let error = Err(ParseError(input.to_string()));
 
         match input {
             _ if input.is_empty() => error,
@@ -63,14 +63,14 @@ impl FromStr for Instruction {
 
 #[cfg(test)]
 mod tests {
-    use super::{Instruction, InstructionParseError, Value};
+    use super::{Instruction, ParseError, Value};
 
     #[test]
     fn test_parse_empty() {
         let empty_instruction = "";
 
-        let expected_err: Result<Instruction, InstructionParseError> =
-            Err(InstructionParseError(String::new()));
+        let expected_err: Result<Instruction, ParseError> =
+            Err(ParseError(String::new()));
 
         let err = empty_instruction.parse();
 
@@ -104,14 +104,14 @@ mod tests {
             Value::RegisterId("#NERV".to_string()),
             Value::RegisterId("X".to_string()),
         ));
-        let expected_err1: Result<Instruction, InstructionParseError> =
-            Err(InstructionParseError("COPY #NERV 6666".to_string()));
-        let expected_err2: Result<Instruction, InstructionParseError> =
-            Err(InstructionParseError("COPY#NERV6666".to_string()));
-        let expected_err3: Result<Instruction, InstructionParseError> =
-            Err(InstructionParseError("COPY #NERV".to_string()));
-        let expected_err4: Result<Instruction, InstructionParseError> =
-            Err(InstructionParseError("COPY".to_string()));
+        let expected_err1: Result<Instruction, ParseError> =
+            Err(ParseError("COPY #NERV 6666".to_string()));
+        let expected_err2: Result<Instruction, ParseError> =
+            Err(ParseError("COPY#NERV6666".to_string()));
+        let expected_err3: Result<Instruction, ParseError> =
+            Err(ParseError("COPY #NERV".to_string()));
+        let expected_err4: Result<Instruction, ParseError> =
+            Err(ParseError("COPY".to_string()));
 
         let result1 = instruction1.parse();
         let result2 = instruction2.parse();
