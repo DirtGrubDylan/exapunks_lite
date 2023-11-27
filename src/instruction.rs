@@ -47,15 +47,162 @@ pub enum Instruction {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ParseError(String);
 
+impl Instruction {
+    fn parse_copy(line: &str) -> Result<Self, ParseError> {
+        let error = Err(ParseError(line.to_string()));
+        let split_line: Vec<&str> = line.split(' ').collect();
+
+        if split_line.len() != 3 {
+            return error;
+        }
+
+        let source_result = Value::new_number_or_register_id(split_line[1]);
+        let destination_result = Value::new_register_id(split_line[2]);
+
+        match (source_result, destination_result) {
+            (Ok(source), Ok(destination)) => Ok(Self::Copy(source, destination)),
+            _ => error,
+        }
+    }
+
+    fn parse_add(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_subtract(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_multiply(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_divide(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_modulo(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_swiz(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_mark(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_jump(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_jump_if_true(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_jump_if_false(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_test_equal(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_test_greater_than(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_test_less_than(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_replicate(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_halt(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_kill(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_link(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_host(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_mode(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_voidm(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_testmrd(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_make(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_grab(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_file(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_seek(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_voidf(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_drop(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_wipe(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_test_end_of_file(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_note(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_noop(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+
+    fn parse_random(line: &str) -> Result<Self, ParseError> {
+        unimplemented!()
+    }
+}
+
 impl FromStr for Instruction {
     type Err = ParseError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let _split_input = input.split(' ');
         let error = Err(ParseError(input.to_string()));
 
         match input {
             _ if input.is_empty() => error,
+            _ if input.starts_with("COPY") => Self::parse_copy(input),
             _ => unimplemented!(),
         }
     }
@@ -69,8 +216,7 @@ mod tests {
     fn test_parse_empty() {
         let empty_instruction = "";
 
-        let expected_err: Result<Instruction, ParseError> =
-            Err(ParseError(String::new()));
+        let expected_err: Result<Instruction, ParseError> = Err(ParseError(String::new()));
 
         let err = empty_instruction.parse();
 
@@ -110,8 +256,7 @@ mod tests {
             Err(ParseError("COPY#NERV6666".to_string()));
         let expected_err3: Result<Instruction, ParseError> =
             Err(ParseError("COPY #NERV".to_string()));
-        let expected_err4: Result<Instruction, ParseError> =
-            Err(ParseError("COPY".to_string()));
+        let expected_err4: Result<Instruction, ParseError> = Err(ParseError("COPY".to_string()));
 
         let result1 = instruction1.parse();
         let result2 = instruction2.parse();

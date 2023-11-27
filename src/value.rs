@@ -59,8 +59,8 @@ impl Value {
     ///
     /// assert_eq!(number_result, expected_number_result);
     /// assert_eq!(
-    /// hardware_register_id_result,
-    /// expected_hardware_register_id_result
+    ///     hardware_register_id_result,
+    ///     expected_hardware_register_id_result
     /// );
     /// assert_eq!(exa_register_id_result, expected_exa_register_id_result);
     /// assert!(empty_result.is_err());
@@ -101,8 +101,8 @@ impl Value {
     /// let empty_result = Value::new_number_or_register_id(exa_register_id);
     ///
     /// assert_eq!(
-    /// hardware_register_id_result,
-    /// expected_hardware_register_id_result
+    ///     hardware_register_id_result,
+    ///     expected_hardware_register_id_result
     /// );
     /// assert_eq!(exa_register_id_result, expected_exa_register_id_result);
     /// assert!(empty_result.is_err());
@@ -133,15 +133,14 @@ impl Value {
     /// # Examples
     ///
     /// ```
-    ///
     /// let id = "JUMP_TO_THIS";
     /// let empty = "";
     ///
     /// let expected = Ok(Value::LabelId("JUMP_TO_THIS".to_string()));
-    /// 
+    ///
     /// let result = Value::new_label_id(id);
     /// let empty_result = Value::new_label_id(empty);
-    /// 
+    ///
     /// assert_eq!(result, expected);
     /// assert!(empty_result.is_err());
     /// ```
