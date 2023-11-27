@@ -11,7 +11,7 @@ use std::str::FromStr;
 /// and numbers.
 ///
 /// A [`Register`] can hold on to a number or keyword value.
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub enum Value {
     Number(isize),
     Keyword(String),
