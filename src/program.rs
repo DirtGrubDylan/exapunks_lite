@@ -14,7 +14,7 @@ use crate::value::Value;
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct Program {
     file_path: String,
-    instructions: HashMap<usize, Instruction>,
+    instructions: Vec<(usize, Instruction)>,
     marks: HashMap<String, usize>,
     stack_index: usize,
 }
@@ -50,7 +50,7 @@ impl Program {
     /// Errors will be returned as a list of line numbers and the specific errors.
     pub fn new(instruction_strings: &[String]) -> Result<Self, ParseError> {
         let mut marks = HashMap::new();
-        let mut instructions = HashMap::new();
+        let mut instructions = Vec::new();
         let mut instruction_parse_results = HashMap::new();
 
         for (line_number, line) in instruction_strings.iter().enumerate() {
@@ -68,7 +68,7 @@ impl Program {
                     marks.insert(label.clone(), line_number);
                 }
                 Ok(instruction) => {
-                    instructions.insert(line_number, instruction.clone());
+                    instructions.push((line_number, instruction.clone()));
                 }
                 _ => {}
             }
@@ -96,6 +96,10 @@ impl Program {
     /// # Errors
     ///
     /// Errors will be returned as a list of line numbers and the specific errors.
+    ///
+    /// # Panics
+    ///
+    /// If the given file path is not a *.exa file.
     pub fn new_from_file(file_name: &str) -> Result<Self, ParseError> {
         if !file_name.ends_with(".exa") {
             panic!("File {file_name} is invalid, and must end with '.exa'");
@@ -106,6 +110,48 @@ impl Program {
 
             program
         })
+    }
+
+    /// Returns the line number and [`Instruction`] tuple at the current stack index.
+    ///
+    /// If the stack index is not in the instructions map, then return [`Empty`];
+    pub fn get_current_instruction(&mut self) -> Option<(usize, Instruction)> {
+        let result = self.instructions.get(self.stack_index).cloned();
+
+        if result.is_some() {
+            self.stack_index += 1;
+        }
+
+        result
+    }
+
+    /// Sets the stack index the respective `MARK` [`Value`].
+    ///
+    /// A MARK identifies a line number to set the index to. However, since there can be comments,
+    /// notes, empty line, or even other marks, this will find the next instruction after the mark.
+    ///
+    /// # Panics
+    ///
+    /// If the given label is not in the list of `MARKS` or if the given [`Value`] is not
+    /// a [`Value::LabelId`].
+    pub fn jump_to(&mut self, mark_label: &Value) {
+        let line_number_of_mark = match mark_label {
+            Value::LabelId(label) => self
+                .marks
+                .get(label)
+                .copied()
+                .unwrap_or_else(|| panic!("{label} is not a valid MARK!")),
+            _ => panic!("{mark_label:?} is not a Value::LabelId!"),
+        };
+
+        // Get the index of the instruction whose line number directly follows the mark.
+        for (index, (line_number, _)) in self.instructions.iter().enumerate() {
+            if line_number_of_mark < *line_number {
+                self.stack_index = index;
+
+                break;
+            }
+        }
     }
 
     /// Creates a possible [`ParseError`] for the given list of [`Instruction`]s and seen `MARK`
@@ -232,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_new_from_file() {
-        let expected_instructions = HashMap::from([
+        let expected_instructions = vec![
             (0, Instruction::Link(Value::Number(800))),
             (
                 2,
@@ -255,7 +301,7 @@ mod tests {
                 Instruction::JumpIfFalse(Value::LabelId(String::from("THIS_LABEL"))),
             ),
             (10, Instruction::Halt),
-        ]);
+        ];
 
         let expected_program = Program {
             file_path: String::from("test_files/simple_program.exa"),
@@ -267,5 +313,84 @@ mod tests {
         let program = Program::new_from_file("test_files/simple_program.exa");
 
         assert_eq!(program, Ok(expected_program));
+    }
+
+    #[test]
+    fn test_get_current_instruction() {
+        let mut program = Program::try_from([
+            "LINK 800",
+            "",
+            "COPY 4 X",
+            "",
+            "# Loop a few times",
+            "MARK THIS_LABEL",
+            "SUBI X 1 X",
+            "TEST X = 0",
+            "FJMP THIS_LABEL",
+            "",
+            "HALT",
+        ])
+        .unwrap();
+
+        let expected = vec![
+            (0, Instruction::Link(Value::Number(800))),
+            (
+                2,
+                Instruction::Copy(Value::Number(4), Value::RegisterId(String::from("X"))),
+            ),
+            (
+                6,
+                Instruction::Subtract(
+                    Value::RegisterId(String::from("X")),
+                    Value::Number(1),
+                    Value::RegisterId(String::from("X")),
+                ),
+            ),
+            (
+                7,
+                Instruction::TestEqual(Value::RegisterId(String::from("X")), Value::Number(0)),
+            ),
+            (
+                8,
+                Instruction::JumpIfFalse(Value::LabelId(String::from("THIS_LABEL"))),
+            ),
+            (10, Instruction::Halt),
+        ];
+
+        let mut results = Vec::new();
+
+        while let Some(instruction) = program.get_current_instruction() {
+            results.push(instruction);
+        }
+
+        assert!(program.get_current_instruction().is_none());
+        assert_eq!(program.stack_index, 6);
+        assert_eq!(results, expected);
+    }
+
+    #[test]
+    fn test_jump_to() {
+        let mut program = Program::try_from([
+            "LINK 800",
+            "",
+            "COPY 4 X",
+            "",
+            "# Loop a few times",
+            "MARK THIS_LABEL",
+            "MARK ANOTHER_LABEL",
+            "NOTE skip this ",
+            "# skip this too",
+            "",
+            "SUBI X 1 X",
+            "TEST X = 0",
+            "FJMP THIS_LABEL",
+            "",
+            "HALT",
+        ])
+        .unwrap();
+
+        program.jump_to(&Value::LabelId(String::from("ANOTHER_LABEL")));
+
+        assert_eq!(program.stack_index, 2);
     }
 }
