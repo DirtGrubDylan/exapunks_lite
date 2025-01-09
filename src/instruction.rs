@@ -44,7 +44,7 @@ pub enum Instruction {
 }
 
 /// A dummy struct to indicate that there was an error on the [`FromStr`] implementation.
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum ParseError {
     InvalidInstruction,
     InvalidLineLength,
@@ -54,7 +54,7 @@ pub enum ParseError {
 }
 
 impl Instruction {
-    /// Parses a given line to a `RegisterId`/`Number`.
+    /// Parses a given line to a `RegisterId`/`Number` and applies the constructor.
     ///
     /// A valid line is "[instruction] [first value]".
     ///
@@ -67,17 +67,22 @@ impl Instruction {
     ///
     /// * Is not 2 distinct words seperated by a space.
     /// * Doesn't have a valid register id and/or number as the first value.
-    fn parse_rn(line: &str) -> Result<Value, ParseError> {
+    fn parse_rn<C>(line: &str, constructor: C) -> Result<Self, ParseError>
+    where
+        C: Fn(Value) -> Self,
+    {
         let split_line: Vec<&str> = line.split(' ').collect();
 
         if split_line.len() != 2 {
             return Err(ParseError::InvalidLineLength);
         }
 
-        Value::new_number_or_register_id(split_line[1]).map_err(|_| ParseError::InvalidValues)
+        Value::new_number_or_register_id(split_line[1])
+            .map(constructor)
+            .map_err(|_| ParseError::InvalidValues)
     }
 
-    /// Parses a given line to a (`RegisterId`/`Number`, `RegisterId`) tuple.
+    /// Parses a given line to a (`RegisterId`/`Number`, `RegisterId`) and applies the constructor.
     ///
     /// A valid line is "[instruction] [first value] [second value]".
     ///
@@ -92,7 +97,10 @@ impl Instruction {
     /// * Is not 3 distinct words seperated by a space.
     /// * Doesn't have a valid register id and/or number as the first value.
     /// * Doesn't have a valid register id as the second value.
-    fn parse_rn_r(line: &str) -> Result<(Value, Value), ParseError> {
+    fn parse_rn_r<C>(line: &str, constructor: C) -> Result<Self, ParseError>
+    where
+        C: Fn(Value, Value) -> Self,
+    {
         let split_line: Vec<&str> = line.split(' ').collect();
 
         if split_line.len() != 3 {
@@ -103,12 +111,12 @@ impl Instruction {
         let destination_result = Value::new_register_id(split_line[2]);
 
         match (source_result, destination_result) {
-            (Ok(source), Ok(destination)) => Ok((source, destination)),
+            (Ok(source), Ok(destination)) => Ok(constructor(source, destination)),
             _ => Err(ParseError::InvalidValues),
         }
     }
 
-    /// Parses a given line to a (`RegisterId`/`Number`, `RegisterId`/`Number`, `RegisterId`) tuple.
+    /// Parses a given line to a (`RegisterId`/`Number`, `RegisterId`/`Number`, `RegisterId`) and applies the constructor.
     ///
     /// A valid line is "[instruction] [first value] [second value] [third value]".
     ///
@@ -125,7 +133,10 @@ impl Instruction {
     /// * Doesn't have a valid register id and/or number as the first value.
     /// * Doesn't have a valid register id and/or number as the second value.
     /// * Doesn't have a valid register id as the third value.
-    fn parse_rn_rn_r(line: &str) -> Result<(Value, Value, Value), ParseError> {
+    fn parse_rn_rn_r<C>(line: &str, constructor: C) -> Result<Self, ParseError>
+    where
+        C: Fn(Value, Value, Value) -> Self,
+    {
         let split_line: Vec<&str> = line.split(' ').collect();
 
         if split_line.len() != 4 {
@@ -138,13 +149,13 @@ impl Instruction {
 
         match (first_result, second_result, destination_result) {
             (Ok(first_source), Ok(second_source), Ok(destination)) => {
-                Ok((first_source, second_source, destination))
+                Ok(constructor(first_source, second_source, destination))
             }
             _ => Err(ParseError::InvalidValues),
         }
     }
 
-    /// Parses a given line to a `RegisterId`.
+    /// Parses a given line to a `RegisterId` and applies the constructor.
     ///
     /// A valid line is "[instruction] [first value]".
     ///
@@ -157,17 +168,22 @@ impl Instruction {
     ///
     /// * Is not 2 distinct words seperated by a space.
     /// * Doesn't have a valid register id as the first value.
-    fn parse_r(line: &str) -> Result<Value, ParseError> {
+    fn parse_r<C>(line: &str, constructor: C) -> Result<Self, ParseError>
+    where
+        C: Fn(Value) -> Self,
+    {
         let split_line: Vec<&str> = line.split(' ').collect();
 
         if split_line.len() != 2 {
             return Err(ParseError::InvalidLineLength);
         }
 
-        Value::new_register_id(split_line[1]).map_err(|_| ParseError::InvalidValues)
+        Value::new_register_id(split_line[1])
+            .map(constructor)
+            .map_err(|_| ParseError::InvalidValues)
     }
 
-    /// Parses a given line to a `LabelId`.
+    /// Parses a given line to a `LabelId` and applies the constructor.
     ///
     /// A valid line is "[instruction] [first value]".
     ///
@@ -180,14 +196,19 @@ impl Instruction {
     ///
     /// * Is not 2 distinct words seperated by a space.
     /// * Doesn't have a valid label id as the first value.
-    fn parse_l(line: &str) -> Result<Value, ParseError> {
+    fn parse_l<C>(line: &str, constructor: C) -> Result<Self, ParseError>
+    where
+        C: Fn(Value) -> Self,
+    {
         let split_line: Vec<&str> = line.split(' ').collect();
 
         if split_line.len() != 2 {
             return Err(ParseError::InvalidLineLength);
         }
 
-        Value::new_label_id(split_line[1]).map_err(|_| ParseError::InvalidValues)
+        Value::new_label_id(split_line[1])
+            .map(constructor)
+            .map_err(|_| ParseError::InvalidValues)
     }
 
     /// Parses a given test line to an instruction.
@@ -206,7 +227,7 @@ impl Instruction {
     /// * Doesn't have a valid register id and/or number as the first value.
     /// * Doesn't have a valid register id and/or number as the second value.
     /// * Doesn't have a valid operation (i.e. '=', '>', or '<').
-    fn parse_test(line: &str) -> Result<Instruction, ParseError> {
+    fn parse_test(line: &str) -> Result<Self, ParseError> {
         let split_line: Vec<&str> = line.split(' ').collect();
 
         if split_line.len() != 4 {
@@ -232,7 +253,7 @@ impl Instruction {
         }
     }
 
-    /// Parses a single instruction.
+    /// Parses to a single given instruction.
     ///
     /// A valid single instruction is "[instruction]".
     ///
@@ -244,9 +265,9 @@ impl Instruction {
     ///
     /// * Is not a single word.
     /// * Is empty.
-    fn parse_single_instruction(line: &str) -> Result<(), ParseError> {
+    fn parse_single_instruction(line: &str, instruction: Self) -> Result<Self, ParseError> {
         if line.len() == 4 {
-            Ok(())
+            Ok(instruction)
         } else {
             Err(ParseError::InvalidLineLength)
         }
@@ -261,51 +282,37 @@ impl FromStr for Instruction {
         let instruction: &str = line.split(' ').next().unwrap_or("");
 
         match instruction {
-            "COPY" => Self::parse_rn_r(line).map(|(src, dest)| Self::Copy(src, dest)),
-            "ADDI" => {
-                Self::parse_rn_rn_r(line).map(|(src1, src2, dest)| Self::Add(src1, src2, dest))
-            }
-            "SUBI" => {
-                Self::parse_rn_rn_r(line).map(|(src1, src2, dest)| Self::Subtract(src1, src2, dest))
-            }
-            "MULI" => {
-                Self::parse_rn_rn_r(line).map(|(src1, src2, dest)| Self::Multiply(src1, src2, dest))
-            }
-            "DIVI" => {
-                Self::parse_rn_rn_r(line).map(|(src1, src2, dest)| Self::Divide(src1, src2, dest))
-            }
-            "MODI" => {
-                Self::parse_rn_rn_r(line).map(|(src1, src2, dest)| Self::Modulo(src1, src2, dest))
-            }
-            "SWIZ" => {
-                Self::parse_rn_rn_r(line).map(|(src1, src2, dest)| Self::Swiz(src1, src2, dest))
-            }
-            "MARK" => Self::parse_l(line).map(Self::Mark),
-            "JUMP" => Self::parse_l(line).map(Self::Jump),
-            "TJMP" => Self::parse_l(line).map(Self::JumpIfTrue),
-            "FJMP" => Self::parse_l(line).map(Self::JumpIfFalse),
+            "COPY" => Self::parse_rn_r(line, Self::Copy),
+            "ADDI" => Self::parse_rn_rn_r(line, Self::Add),
+            "SUBI" => Self::parse_rn_rn_r(line, Self::Subtract),
+            "MULI" => Self::parse_rn_rn_r(line, Self::Multiply),
+            "DIVI" => Self::parse_rn_rn_r(line, Self::Divide),
+            "MODI" => Self::parse_rn_rn_r(line, Self::Modulo),
+            "SWIZ" => Self::parse_rn_rn_r(line, Self::Swiz),
+            "MARK" => Self::parse_l(line, Self::Mark),
+            "JUMP" => Self::parse_l(line, Self::Jump),
+            "TJMP" => Self::parse_l(line, Self::JumpIfTrue),
+            "FJMP" => Self::parse_l(line, Self::JumpIfFalse),
             "TEST" if (line == "TEST MRD") => Ok(Self::TestMRD),
             "TEST" if (line == "TEST EOF") => Ok(Self::TestEndOfFile),
             "TEST" => Self::parse_test(line),
-            "REPL" => Self::parse_l(line).map(Self::Replicate),
-            "HALT" => Self::parse_single_instruction(line).map(|()| Self::Halt),
-            "KILL" => Self::parse_single_instruction(line).map(|()| Self::Kill),
-            "LINK" => Self::parse_rn(line).map(Self::Link),
-            "HOST" => Self::parse_r(line).map(Self::Host),
-            "MODE" => Self::parse_single_instruction(line).map(|()| Self::Mode),
+            "REPL" => Self::parse_l(line, Self::Replicate),
+            "HALT" => Self::parse_single_instruction(line, Self::Halt),
+            "KILL" => Self::parse_single_instruction(line, Self::Kill),
+            "LINK" => Self::parse_rn(line, Self::Link),
+            "HOST" => Self::parse_r(line, Self::Host),
+            "MODE" => Self::parse_single_instruction(line, Self::Mode),
             "VOID" if (line == "VOID M") => Ok(Self::VoidM),
-            "MAKE" => Self::parse_single_instruction(line).map(|()| Self::Make),
-            "GRAB" => Self::parse_rn(line).map(Self::Grab),
-            "FILE" => Self::parse_r(line).map(Self::File),
-            "SEEK" => Self::parse_rn(line).map(Self::Seek),
+            "MAKE" => Self::parse_single_instruction(line, Self::Make),
+            "GRAB" => Self::parse_rn(line, Self::Grab),
+            "FILE" => Self::parse_r(line, Self::File),
+            "SEEK" => Self::parse_rn(line, Self::Seek),
             "VOID" if (line == "VOID F") => Ok(Self::VoidF),
-            "DROP" => Self::parse_single_instruction(line).map(|()| Self::Drop),
-            "WIPE" => Self::parse_single_instruction(line).map(|()| Self::Wipe),
+            "DROP" => Self::parse_single_instruction(line, Self::Drop),
+            "WIPE" => Self::parse_single_instruction(line, Self::Wipe),
             "NOTE" => Ok(Self::Note),
-            "NOOP" => Self::parse_single_instruction(line).map(|()| Self::NoOp),
-            "RAND" => {
-                Self::parse_rn_rn_r(line).map(|(src1, src2, dest)| Self::Random(src1, src2, dest))
-            }
+            "NOOP" => Self::parse_single_instruction(line, Self::NoOp),
+            "RAND" => Self::parse_rn_rn_r(line, Self::Random),
             _ => error,
         }
     }

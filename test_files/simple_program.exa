@@ -1,0 +1,11 @@
+LINK 800
+
+COPY 4 X
+
+# Loop a few times
+MARK THIS_LABEL
+SUBI X 1 X
+TEST X = 0
+FJMP THIS_LABEL
+
+HALT

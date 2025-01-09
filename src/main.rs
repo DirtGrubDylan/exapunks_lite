@@ -1,6 +1,7 @@
 pub mod exa;
 pub mod instruction;
 pub mod program;
+pub mod util;
 pub mod value;
 
 use crate::instruction::Instruction;
