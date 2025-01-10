@@ -18,8 +18,12 @@ pub enum RegisterWriteError {
 
 impl Register {
     /// Returns a register with a given id and an [`Option::None`] value.
+    #[must_use]
     pub fn new(id: &str) -> Self {
-        unimplemented!()
+        Register {
+            id: id.to_string(),
+            value: None,
+        }
     }
 
     /// Returns a register with a given id and [`Value`].
@@ -29,14 +33,17 @@ impl Register {
     /// * If the given value is a [`Value::LabelId`] or [`Value::RegisterId`].
     /// * If the given value is a [`Value::Number`] not within the [-9999, 9999] bounds.
     pub fn new_with_value(id: &str, value: &Value) -> Result<Self, RegisterWriteError> {
-        unimplemented!()
+        let mut register = Self::new(id);
+
+        register.write(value).map(|()| register)
     }
 
     /// Returns a register with a given id and [`Value`].
     ///
     /// This will clone the [`Value`] that the register is holding.
+    #[must_use]
     pub fn read(&self) -> Option<Value> {
-        unimplemented!()
+        self.value.clone()
     }
 
     /// Write a given [`Value`] to the register.
@@ -48,19 +55,32 @@ impl Register {
     /// * If the given value is a [`Value::LabelId`] or [`Value::RegisterId`].
     /// * If the given value is a [`Value::Number`] not within the [-9999, 9999] bounds.
     pub fn write(&mut self, value: &Value) -> Result<(), RegisterWriteError> {
-        unimplemented!()
+        match value {
+            Value::Number(number) if *number < -9_999 => {
+                Err(RegisterWriteError::NumberValueTooSmall(value.clone()))
+            }
+            Value::Number(number) if 9_999 < *number => {
+                Err(RegisterWriteError::NumberValueTooLarge(value.clone()))
+            }
+            Value::LabelId(_) => Err(RegisterWriteError::WriteWithLabelId(value.clone())),
+            Value::RegisterId(_) => Err(RegisterWriteError::WriteWithRegisterId(value.clone())),
+            _ => {
+                self.value = Some(value.clone());
+
+                Ok(())
+            }
+        }
     }
 
     /// Clears a register's value.
     ///
     /// Just sets the value to [`Option::None`].
-    fn clear(&mut self) {
-        unimplemented!()
+    pub fn clear(&mut self) {
+        self.value = None;
     }
 }
 
 #[cfg(test)]
-#[allow(unused_imports)]
 mod tests {
     use super::*;
 
@@ -112,7 +132,7 @@ mod tests {
         let result = register.write(&value);
 
         assert_eq!(register, expected_register);
-        assert_eq!(result, Err(RegisterWriteError::NumberValueTooSmall(value)))
+        assert_eq!(result, Err(RegisterWriteError::NumberValueTooSmall(value)));
     }
 
     #[test]
@@ -128,7 +148,7 @@ mod tests {
         let result = register.write(&value);
 
         assert_eq!(register, expected_register);
-        assert_eq!(result, Err(RegisterWriteError::NumberValueTooLarge(value)))
+        assert_eq!(result, Err(RegisterWriteError::NumberValueTooLarge(value)));
     }
 
     #[test]
@@ -160,7 +180,7 @@ mod tests {
         let result = register.write(&value);
 
         assert_eq!(register, expected_register);
-        assert_eq!(result, Err(RegisterWriteError::WriteWithLabelId(value)))
+        assert_eq!(result, Err(RegisterWriteError::WriteWithLabelId(value)));
     }
 
     #[test]
@@ -170,13 +190,13 @@ mod tests {
 
         let expected_register = Register {
             id: String::from("X"),
-            value: Some(value.clone()),
+            value: None,
         };
 
         let result = register.write(&value);
 
         assert_eq!(register, expected_register);
-        assert_eq!(result, Err(RegisterWriteError::WriteWithRegisterId(value)))
+        assert_eq!(result, Err(RegisterWriteError::WriteWithRegisterId(value)));
     }
 
     #[test]
