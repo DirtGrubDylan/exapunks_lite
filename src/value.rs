@@ -150,6 +150,18 @@ impl Value {
     }
 }
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let as_string = match self {
+            Self::Number(number) => number.to_string(),
+            Self::Keyword(keyword) => keyword.clone(),
+            Self::RegisterId(register_id) => register_id.clone(),
+            Self::LabelId(label_id) => label_id.clone(),
+        };
+
+        write!(f, "{as_string}")
+    }
+}
 impl From<isize> for Value {
     fn from(input: isize) -> Self {
         Value::Number(input)
@@ -165,16 +177,12 @@ impl From<Value> for isize {
     }
 }
 
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let as_string = match self {
-            Self::Number(number) => number.to_string(),
-            Self::Keyword(keyword) => keyword.clone(),
-            Self::RegisterId(register_id) => register_id.clone(),
-            Self::LabelId(label_id) => label_id.clone(),
-        };
-
-        write!(f, "{as_string}")
+impl From<&str> for Value {
+    fn from(input: &str) -> Self {
+        match input.parse::<isize>() {
+            Ok(number) => Value::Number(number),
+            Err(_) => Value::Keyword(input.to_string()),
+        }
     }
 }
 
@@ -182,10 +190,10 @@ impl FromStr for Value {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.parse::<isize>() {
-            _ if s.is_empty() => Err(ParseError),
-            Ok(number) => Ok(Value::Number(number)),
-            Err(_) => Ok(Value::Keyword(s.to_string())),
+        if s.is_empty() {
+            Err(ParseError)
+        } else {
+            Ok(Self::from(s))
         }
     }
 }
