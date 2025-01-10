@@ -1,5 +1,6 @@
 pub mod exa;
 pub mod program;
+pub mod register;
 pub mod util;
 pub mod value;
 
