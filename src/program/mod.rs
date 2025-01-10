@@ -1,9 +1,12 @@
+pub mod instruction;
+pub mod value;
+
 use std::collections::HashMap;
 
-use crate::instruction;
-use crate::instruction::Instruction;
 use crate::util::file_reader::to_string_vector;
-use crate::value::Value;
+
+use instruction::Instruction;
+use value::Value;
 
 /// A Program is just a stack of [`Instruction`]s.
 ///
@@ -65,7 +68,10 @@ impl Program {
 
             match parse_result {
                 Ok(Instruction::Mark(Value::LabelId(label))) => {
-                    marks.insert(label.clone(), line_number);
+                    // Instead of inserting the line number, it's more efficient to store the
+                    // subsequent instruction index... which is the current length of the
+                    // instructions list.
+                    marks.insert(label.clone(), instructions.len());
                 }
                 Ok(instruction) => {
                     instructions.push((line_number, instruction.clone()));
@@ -135,7 +141,7 @@ impl Program {
     /// If the given label is not in the list of `MARKS` or if the given [`Value`] is not
     /// a [`Value::LabelId`].
     pub fn jump_to(&mut self, mark_label: &Value) {
-        let line_number_of_mark = match mark_label {
+        self.stack_index = match mark_label {
             Value::LabelId(label) => self
                 .marks
                 .get(label)
@@ -143,15 +149,6 @@ impl Program {
                 .unwrap_or_else(|| panic!("{label} is not a valid MARK!")),
             _ => panic!("{mark_label:?} is not a Value::LabelId!"),
         };
-
-        // Get the index of the instruction whose line number directly follows the mark.
-        for (index, (line_number, _)) in self.instructions.iter().enumerate() {
-            if line_number_of_mark < *line_number {
-                self.stack_index = index;
-
-                break;
-            }
-        }
     }
 
     /// Creates a possible [`ParseError`] for the given list of [`Instruction`]s and seen `MARK`
@@ -244,7 +241,7 @@ mod tests {
                 .filter(|(_, s)| !s.is_empty())
                 .filter_map(|(i, s)| s.parse().map(|instruction| (i, instruction)).ok())
                 .collect(),
-            marks: HashMap::from([(String::from("THIS_LABEL"), 2)]),
+            marks: HashMap::from([(String::from("THIS_LABEL"), 1)]),
             stack_index: 0,
         };
 
@@ -306,7 +303,7 @@ mod tests {
         let expected_program = Program {
             file_path: String::from("test_files/simple_program.exa"),
             instructions: expected_instructions,
-            marks: HashMap::from([(String::from("THIS_LABEL"), 5)]),
+            marks: HashMap::from([(String::from("THIS_LABEL"), 2)]),
             stack_index: 0,
         };
 
@@ -374,6 +371,7 @@ mod tests {
             "LINK 800",
             "",
             "COPY 4 X",
+            "COPY 4 X",
             "",
             "# Loop a few times",
             "MARK THIS_LABEL",
@@ -391,6 +389,6 @@ mod tests {
 
         program.jump_to(&Value::LabelId(String::from("ANOTHER_LABEL")));
 
-        assert_eq!(program.stack_index, 2);
+        assert_eq!(program.stack_index, 3);
     }
 }

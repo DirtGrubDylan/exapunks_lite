@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::value::Value;
+use super::value::Value;
 
 /// An instruction describes a command for an [`Exa`] to execute.
 ///
