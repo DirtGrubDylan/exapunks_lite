@@ -1,6 +1,7 @@
 pub mod instruction;
 
 use std::collections::HashMap;
+use std::path::Path;
 
 use crate::util::file_reader::to_string_vector;
 use crate::value::Value;
@@ -32,8 +33,9 @@ impl LineParseError {
     /// Fetches the line number.
     fn line_number(&self) -> usize {
         match self {
-            Self::InvalidInstruction(line_number, _) => *line_number,
-            Self::MissingMarkLabel(line_number, _) => *line_number,
+            Self::InvalidInstruction(line_number, _) | Self::MissingMarkLabel(line_number, _) => {
+                *line_number
+            }
         }
     }
 }
@@ -106,9 +108,10 @@ impl Program {
     ///
     /// If the given file path is not a *.exa file.
     pub fn new_from_file(file_name: &str) -> Result<Self, ParseError> {
-        if !file_name.ends_with(".exa") {
-            panic!("File {file_name} is invalid, and must end with '.exa'");
-        }
+        assert!(
+            Self::has_exa_extension(file_name),
+            "File {file_name} is invalid, and must end with '.exa'"
+        );
 
         Program::new(&to_string_vector(file_name).unwrap()).map(|mut program| {
             program.file_path = file_name.to_string();
@@ -178,13 +181,20 @@ impl Program {
             }
         }
 
-        errors.sort_by_key(|error| error.line_number());
+        errors.sort_by_key(LineParseError::line_number);
 
         if errors.is_empty() {
             None
         } else {
             Some(ParseError(errors))
         }
+    }
+
+    /// Indicates if the provide file name has the ".exa" extension.
+    fn has_exa_extension(file_name: &str) -> bool {
+        Path::new(file_name)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("exa"))
     }
 }
 
@@ -222,7 +232,7 @@ mod tests {
             String::from("HALT"),
         ];
 
-        let expected_instructions = vec![
+        let expected_instructions = [
             String::from("LINK 800"),
             String::new(),
             String::new(),
@@ -251,7 +261,7 @@ mod tests {
 
     #[test]
     fn test_try_from_str_array_err() {
-        let instructions = vec![
+        let instructions = [
             String::from("LINK 800 LINK 800"),
             String::new(),
             String::from("GRAB 200"),

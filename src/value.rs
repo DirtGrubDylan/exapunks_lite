@@ -1,5 +1,6 @@
 use std::cmp::{Eq, Ord, PartialEq, PartialOrd};
 use std::convert::From;
+use std::fmt;
 use std::str::FromStr;
 
 /// A `Value` is used to hold several types of information: number, keyword, register id, and a
@@ -164,14 +165,16 @@ impl From<Value> for isize {
     }
 }
 
-impl ToString for Value {
-    fn to_string(&self) -> String {
-        match self {
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let as_string = match self {
             Self::Number(number) => number.to_string(),
             Self::Keyword(keyword) => keyword.clone(),
             Self::RegisterId(register_id) => register_id.clone(),
             Self::LabelId(label_id) => label_id.clone(),
-        }
+        };
+
+        write!(f, "{as_string}")
     }
 }
 
@@ -330,7 +333,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "Cannot convert Keyword(\"keyword\") into an isize!")]
     fn test_from_non_number_to_isize_panics() {
         let keyword = Value::Keyword("keyword".to_string());
 

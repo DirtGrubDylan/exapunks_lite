@@ -719,6 +719,8 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::similar_names)]
     fn test_parse_all() {
         let copy_string = "COPY 1 X";
         let add_string = "ADDI 1 X X";
