@@ -1,9 +1,10 @@
 pub mod exa;
 pub mod program;
 pub mod util;
+pub mod value;
 
 use crate::program::instruction::Instruction;
-use crate::program::value::Value;
+use value::Value;
 
 fn main() {
     let lhs = Value::Number(-127);

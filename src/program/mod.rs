@@ -1,12 +1,11 @@
 pub mod instruction;
-pub mod value;
 
 use std::collections::HashMap;
 
 use crate::util::file_reader::to_string_vector;
+use crate::value::Value;
 
 use instruction::Instruction;
-use value::Value;
 
 /// A Program is just a stack of [`Instruction`]s.
 ///
