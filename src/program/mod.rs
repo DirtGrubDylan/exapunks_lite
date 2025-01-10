@@ -1,6 +1,7 @@
 pub mod instruction;
 
 use std::collections::HashMap;
+use std::fmt;
 use std::path::Path;
 
 use crate::util::file_reader::to_string_vector;
@@ -17,6 +18,7 @@ use instruction::Instruction;
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct Program {
     file_path: String,
+    raw_lines: Vec<String>,
     instructions: Vec<(usize, Instruction)>,
     marks: HashMap<String, usize>,
     stack_index: usize,
@@ -85,6 +87,10 @@ impl Program {
 
         let program = Program {
             file_path: String::new(),
+            raw_lines: instruction_strings
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
             instructions,
             marks,
             stack_index: 0,
@@ -216,6 +222,12 @@ impl TryFrom<&[String]> for Program {
     }
 }
 
+impl fmt::Display for Program {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.raw_lines.join("\n"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,6 +256,7 @@ mod tests {
 
         let expected_program = Program {
             file_path: String::new(),
+            raw_lines: instructions.clone(),
             instructions: expected_instructions
                 .iter()
                 .enumerate()
@@ -284,6 +297,20 @@ mod tests {
 
     #[test]
     fn test_new_from_file() {
+        let expected_raw_lines = vec![
+            String::from("LINK 800"),
+            String::new(),
+            String::from("COPY 4 X"),
+            String::new(),
+            String::from("# Loop a few times"),
+            String::from("MARK THIS_LABEL"),
+            String::from("SUBI X 1 X"),
+            String::from("TEST X = 0"),
+            String::from("FJMP THIS_LABEL"),
+            String::new(),
+            String::from("HALT"),
+        ];
+
         let expected_instructions = vec![
             (0, Instruction::Link(Value::Number(800))),
             (
@@ -311,6 +338,7 @@ mod tests {
 
         let expected_program = Program {
             file_path: String::from("test_files/simple_program.exa"),
+            raw_lines: expected_raw_lines,
             instructions: expected_instructions,
             marks: HashMap::from([(String::from("THIS_LABEL"), 2)]),
             stack_index: 0,
