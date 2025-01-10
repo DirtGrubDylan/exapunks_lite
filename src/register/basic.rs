@@ -24,8 +24,10 @@ impl BasicRegister {
     ///
     /// # Errors
     ///
-    /// * If the given value is a [`Value::LabelId`] or [`Value::RegisterId`].
-    /// * If the given value is a [`Value::Number`] not within the [-9999, 9999] bounds.
+    /// * `NumberValueTooSmall` - if given value is a number less than -9999.
+    /// * `NumberValueTooLarge` - if given value is a number greater than 9999.
+    /// * `WriteWithLabelId` - if given value is a [`Value::LabelId`].
+    /// * `WriteWithRegisterId` - if given value is a [`Value::RegisterId`].
     pub fn new_with_value(id: &str, value: &Value) -> Result<Self, AccessError> {
         let mut register = Self::new(id);
 
@@ -34,12 +36,26 @@ impl BasicRegister {
 }
 
 impl Register for BasicRegister {
-    /// Returns a register with a given id and [`Value`].
+    /// Returns the clone of the register's [`Value`].
     ///
-    /// This will clone the [`Value`] that the register is holding.
-    #[must_use]
-    fn read(&self) -> Option<Value> {
-        self.value.clone()
+    /// # Errors
+    ///
+    /// N/A
+    fn read(&self) -> Result<Option<Value>, AccessError> {
+        Ok(self.value.clone())
+    }
+
+    /// Returns the clone of the register's [`Value`] and clears.
+    ///
+    /// # Errors
+    ///
+    /// N/A
+    fn read_mut(&mut self) -> Result<Option<Value>, AccessError> {
+        let result = Ok(self.value.clone());
+
+        self.clear();
+
+        result
     }
 
     /// Write a given [`Value`] to the register.
@@ -86,7 +102,8 @@ mod tests {
 
         let register = BasicRegister::new_with_value("X", &value).unwrap();
 
-        assert_eq!(register.read(), Some(value));
+        assert_eq!(register.read(), Ok(Some(value)));
+        assert!(register.value.is_some());
     }
 
     #[test]
@@ -95,7 +112,28 @@ mod tests {
 
         let register = BasicRegister::new_with_value("X", &value).unwrap();
 
-        assert_eq!(register.read(), Some(value));
+        assert_eq!(register.read(), Ok(Some(value)));
+        assert!(register.value.is_some());
+    }
+
+    #[test]
+    fn test_read_mut_number() {
+        let value = Value::from(666);
+
+        let mut register = BasicRegister::new_with_value("X", &value).unwrap();
+
+        assert_eq!(register.read_mut(), Ok(Some(value)));
+        assert!(register.value.is_none());
+    }
+
+    #[test]
+    fn test_read_mut_keyword() {
+        let value = Value::Keyword(String::from("keyword"));
+
+        let mut register = BasicRegister::new_with_value("X", &value).unwrap();
+
+        assert_eq!(register.read_mut(), Ok(Some(value)));
+        assert!(register.value.is_none());
     }
 
     #[test]
