@@ -1,3 +1,5 @@
+mod id_generator;
+
 use crate::value::Value;
 
 /// A File holds an identifier, a list of [`Value`]s, and an index.
