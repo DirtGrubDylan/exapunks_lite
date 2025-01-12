@@ -11,6 +11,7 @@ pub struct IdGenerator {
 
 impl IdGenerator {
     /// Creates a new `IdGenerator` with a given list of integers to avoid.
+    #[must_use]
     pub fn new(ids_to_avoid_list: &[usize]) -> Self {
         let mut next_id = 400;
         let ids_to_avoid: HashSet<usize> = ids_to_avoid_list.iter().copied().collect();

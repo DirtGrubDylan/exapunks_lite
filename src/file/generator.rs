@@ -23,6 +23,7 @@ impl Generator {
     /// # Panics
     ///
     /// If the generated id is greater than 9999.
+    #[must_use]
     pub fn generate(&self) -> File {
         File::new(&self.id_generator.borrow_mut().next().unwrap())
     }
