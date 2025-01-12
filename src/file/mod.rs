@@ -1,4 +1,5 @@
-mod id_generator;
+pub mod generator;
+pub mod id_generator;
 
 use crate::value::Value;
 
