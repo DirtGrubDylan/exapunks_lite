@@ -14,8 +14,10 @@ pub struct Generator {
 impl Generator {
     /// Creates a new [`Generator`] with a given reference counted pointer to
     /// an [`IdGenerator`].
-    pub fn new(id_generator: Rc<RefCell<IdGenerator>>) -> Self {
-        Generator { id_generator }
+    pub fn new(id_generator: &Rc<RefCell<IdGenerator>>) -> Self {
+        Generator {
+            id_generator: Rc::clone(id_generator),
+        }
     }
 
     /// Generates a new [`File`] object with a generated id and no contents.
@@ -37,8 +39,8 @@ mod tests {
     fn test_generate_files_with_multiple_generators() {
         let id_generator = Rc::new(RefCell::new(IdGenerator::default()));
 
-        let file_generator_1 = Generator::new(id_generator.clone());
-        let file_generator_2 = Generator::new(id_generator);
+        let file_generator_1 = Generator::new(&id_generator);
+        let file_generator_2 = Generator::new(&id_generator);
 
         let result_1 = file_generator_1.generate();
         let result_2 = file_generator_2.generate();
