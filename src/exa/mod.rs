@@ -4,5 +4,5 @@ mod communication_mode;
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct Exa {
-    id: String,
+    pub id: String,
 }

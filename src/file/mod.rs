@@ -8,7 +8,7 @@ use crate::value::Value;
 /// The values are either [`Value::Number`] or [`Value::Keyword`].
 #[derive(Debug, PartialEq, Clone)]
 pub struct File {
-    id: String,
+    pub id: String,
     contents: Vec<Value>,
     index: usize,
 }
