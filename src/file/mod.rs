@@ -6,6 +6,7 @@ use crate::value::Value;
 /// A File holds an identifier, a list of [`Value`]s, and an index.
 ///
 /// The values are either [`Value::Number`] or [`Value::Keyword`].
+#[derive(Debug, PartialEq, Clone)]
 pub struct File {
     id: String,
     contents: Vec<Value>,

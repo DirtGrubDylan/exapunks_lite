@@ -1,14 +1,14 @@
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 use super::id_generator::IdGenerator;
 use super::File;
 
 /// The file generator holds a reference counted pointer to an [`IdGenerator`]
 /// so that every Exa can generate files without conflicting Ids.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Generator {
-    id_generator: Rc<RefCell<IdGenerator>>,
+    id_generator: Weak<RefCell<IdGenerator>>,
 }
 
 impl Generator {
@@ -16,7 +16,7 @@ impl Generator {
     /// an [`IdGenerator`].
     pub fn new(id_generator: &Rc<RefCell<IdGenerator>>) -> Self {
         Generator {
-            id_generator: Rc::clone(id_generator),
+            id_generator: Rc::downgrade(id_generator),
         }
     }
 
@@ -27,7 +27,15 @@ impl Generator {
     /// If the generated id is greater than 9999.
     #[must_use]
     pub fn generate(&self) -> File {
-        File::new(&self.id_generator.borrow_mut().next().unwrap())
+        File::new(
+            &self
+                .id_generator
+                .upgrade()
+                .unwrap()
+                .borrow_mut()
+                .next()
+                .unwrap(),
+        )
     }
 }
 
