@@ -194,7 +194,11 @@ impl Host {
             .get(gate_id)
             .and_then(Weak::upgrade)
             .filter(|link| !link.borrow().occupied)
-            .and_then(|link| link.borrow().destination(gate_id))
+            .and_then(|link| {
+                link.borrow_mut().occupied = true;
+
+                link.borrow().destination(gate_id)
+            })
             .and_then(|host| host.upgrade())
             .filter(|host| host.borrow().has_available_space())
             .map(|host| Rc::downgrade(&host))
@@ -223,7 +227,9 @@ mod tests {
 
     #[test]
     fn test_link_none_no_link_exists() {
-        unimplemented!()
+        let host = Host::new("host_id", 9);
+
+        assert!(host.link("800").is_none());
     }
 
     #[test]
@@ -238,7 +244,23 @@ mod tests {
 
     #[test]
     fn test_link_some_and_link_is_occupied() {
-        unimplemented!()
+        let host_1 = Rc::new(RefCell::new(Host::new("host_1", 9)));
+        let host_2 = Rc::new(RefCell::new(Host::new("host_2", 9)));
+
+        let link = Rc::new(RefCell::new(Link::new("800", &host_2, "-1", &host_1)));
+
+        assert!(!link.borrow().occupied);
+
+        host_1.borrow_mut().insert_link("800", &link);
+        host_2.borrow_mut().insert_link("-1", &link);
+
+        let linked_host = host_1.borrow_mut().link("800");
+        let linked_host_id = linked_host
+            .and_then(|host| host.upgrade())
+            .map(|host| host.borrow().id.clone());
+
+        assert_eq!(linked_host_id, Some(String::from("host_2")));
+        assert!(link.borrow().occupied);
     }
 
     #[test]
