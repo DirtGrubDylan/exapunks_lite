@@ -4,6 +4,7 @@
 /// * Local - The "M" register can be written/read by all other EXAs in the same [`Host`] that are
 ///   also in Local mode.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[allow(dead_code)]
 pub enum CommunicationMode {
     Global,
     Local,
