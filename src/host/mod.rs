@@ -12,6 +12,13 @@ use crate::register::hardware::HardwareRegister;
 
 use link::Link;
 
+/// Errors from host operations.
+#[derive(Debug, PartialEq, Clone)]
+pub enum HostError {
+    LinkDoesNotExist(String),
+    NoRoomForFile(File),
+}
+
 /// A Host is a sized collection to hold a local M [`BasicRegister`], [`File`]s, [`Exa`]s,
 /// [`HardwareRegister`]s, and [`Link`]s.
 #[derive(Debug, Clone)]
@@ -64,17 +71,19 @@ impl Host {
     }
 
     /// Inserts an [`File`] to the map of pending files, using the file's id as the key.
+    /// Returns the [`File`] back in a [`HostError::NoRoomForFile`] if there is no room.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// If there is no room in the host.
-    pub fn insert_pending_file(&mut self, file: File) {
-        assert!(
-            self.has_available_space(),
-            "There is no available space in the Host for a pending file."
-        );
+    /// * `NoRoomForFile` - if there is no room in the host.
+    pub fn insert_pending_file(&mut self, file: File) -> Result<(), HostError> {
+        if self.has_available_space() {
+            self.pending_files.insert(file.id.clone(), file);
 
-        self.pending_files.insert(file.id.clone(), file);
+            Ok(())
+        } else {
+            Err(HostError::NoRoomForFile(file))
+        }
     }
 
     /// Inserts an [`HardwareRegister`] to the map of hardware registers, using the register's id as
@@ -132,24 +141,25 @@ impl Host {
             .filter(|file| !self.pending_files.contains_key(&file.id))
     }
 
-    /// Removes a given id from the list of occupying exa ids.
-    pub fn remove_occupying_exa_id(&mut self, exa_id: &str) {
-        self.occupying_exa_ids.remove(exa_id);
+    /// Removes, and returns, a given id from the list of occupying exa ids.
+    pub fn remove_occupying_exa_id(&mut self, exa_id: &str) -> Option<String> {
+        if self.occupying_exa_ids.remove(exa_id) {
+            Some(exa_id.to_string())
+        } else {
+            None
+        }
     }
 
     /// Removes, and returns, a random id from the list of occupying exa ids.
     pub fn remove_random_occupying_exa_id(&mut self) -> Option<String> {
-        let possible_id = self
+        let id = self
             .occupying_exa_ids
             .iter()
             .choose(&mut thread_rng())
-            .cloned();
+            .cloned()
+            .unwrap_or(String::new());
 
-        if let Some(id) = &possible_id {
-            self.occupying_exa_ids.remove(id);
-        }
-
-        possible_id
+        self.remove_occupying_exa_id(&id)
     }
 
     /// Removes, and returns the id of, a random exa from the list of system exas.
@@ -186,22 +196,35 @@ impl Host {
     /// Returns a [`Weak`] reference to the linked host for a given gate id, if possible.
     ///
     /// This will return [`Option::None`] if:
-    /// * The [`Link`] does not exist for the given gate id.
     /// * The [`Link`] does exist, but is occupied.
     /// * The destination host has no occupancy.
-    pub fn link(&self, gate_id: &str) -> Option<Weak<RefCell<Host>>> {
-        self.links
+    ///
+    /// # Errors
+    ///
+    /// * `LinkDoesNotExist` - if the [`Link`] does not exist for the given gate id.
+    pub fn link(&self, gate_id: &str) -> Result<Option<Weak<RefCell<Host>>>, HostError> {
+        if !self.has_link(gate_id) {
+            return Err(HostError::LinkDoesNotExist(gate_id.to_string()));
+        }
+
+        let available_link = self
+            .links
             .get(gate_id)
             .and_then(Weak::upgrade)
-            .filter(|link| !link.borrow().occupied)
-            .and_then(|link| {
-                link.borrow_mut().occupied = true;
+            .filter(|link| !link.borrow().occupied);
 
-                link.borrow().destination(gate_id)
-            })
+        let destination_host = available_link
+            .as_ref()
+            .and_then(|link| link.borrow().destination(gate_id))
             .and_then(|host| host.upgrade())
             .filter(|host| host.borrow().has_available_space())
-            .map(|host| Rc::downgrade(&host))
+            .map(|host| Rc::downgrade(&host));
+
+        if destination_host.is_some() {
+            available_link.unwrap().borrow_mut().occupied = true;
+        }
+
+        Ok(destination_host)
     }
 
     /// Indicates if there is available space in the host.
@@ -226,20 +249,50 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_link_none_no_link_exists() {
+    fn test_link_err_no_link_exists() {
         let host = Host::new("host_id", 9);
 
-        assert!(host.link("800").is_none());
+        assert!(!host.has_link("800"));
+        assert_eq!(
+            host.link("800").err(),
+            Some(HostError::LinkDoesNotExist(String::from("800")))
+        );
     }
 
     #[test]
-    fn test_link_none_link_is_occupied() {
-        unimplemented!()
+    fn test_link_ok_none_link_is_occupied() {
+        let host_1 = Rc::new(RefCell::new(Host::new("host_1", 9)));
+        let host_2 = Rc::new(RefCell::new(Host::new("host_2", 9)));
+
+        let link = Rc::new(RefCell::new(Link::new("800", &host_2, "-1", &host_1)));
+
+        link.borrow_mut().occupied = true;
+
+        host_1.borrow_mut().insert_link("800", &link);
+        host_2.borrow_mut().insert_link("-1", &link);
+
+        assert!(host_1.borrow().has_link("800"));
+        assert!(host_2.borrow().has_link("-1"));
+        assert!(host_1.borrow_mut().link("800").unwrap().is_none());
+        assert!(host_2.borrow_mut().link("-1").unwrap().is_none());
     }
 
     #[test]
-    fn test_link_none_link_destination_host_is_full() {
-        unimplemented!()
+    fn test_link_ok_none_link_destination_host_is_full() {
+        let host_1 = Rc::new(RefCell::new(Host::new("host_1", 9)));
+        let host_2 = Rc::new(RefCell::new(Host::new("host_2", 0)));
+
+        let link = Rc::new(RefCell::new(Link::new("800", &host_2, "-1", &host_1)));
+
+        host_1.borrow_mut().insert_link("800", &link);
+        host_2.borrow_mut().insert_link("-1", &link);
+
+        assert!(host_1.borrow().has_link("800"));
+        assert!(host_2.borrow().has_link("-1"));
+        assert!(host_1.borrow_mut().link("800").unwrap().is_none());
+        assert!(!link.borrow().occupied);
+        assert!(host_2.borrow_mut().link("-1").unwrap().is_some());
+        assert!(link.borrow().occupied);
     }
 
     #[test]
@@ -254,27 +307,74 @@ mod tests {
         host_1.borrow_mut().insert_link("800", &link);
         host_2.borrow_mut().insert_link("-1", &link);
 
-        let linked_host = host_1.borrow_mut().link("800");
+        let linked_host = host_1.borrow_mut().link("800").unwrap();
         let linked_host_id = linked_host
             .and_then(|host| host.upgrade())
             .map(|host| host.borrow().id.clone());
 
-        assert_eq!(linked_host_id, Some(String::from("host_2")));
         assert!(link.borrow().occupied);
+        assert!(host_1.borrow().has_link("800"));
+        assert!(host_2.borrow().has_link("-1"));
+        assert!(host_2.borrow_mut().link("-1").unwrap().is_none());
+        assert_eq!(linked_host_id, Some(String::from("host_2")));
     }
 
     #[test]
-    fn test_take_file() {
-        unimplemented!()
+    fn test_insert_pending_file_ok() {
+        let mut host = Host::new("host_1", 9);
+        let file = File::new("200");
+
+        let result = host.insert_pending_file(file.clone());
+
+        assert!(result.is_ok());
+        assert_eq!(
+            host.pending_files,
+            HashMap::from([(String::from("200"), file)])
+        );
     }
 
     #[test]
-    fn test_uptake_files() {
-        unimplemented!()
+    fn test_insert_pending_file() {
+        let mut host = Host::new("host_1", 1);
+        let file_1 = File::new("200");
+        let file_2 = File::new("201");
+
+        let result_1 = host.insert_pending_file(file_1.clone());
+        let result_2 = host.insert_pending_file(file_2.clone());
+
+        assert!(result_1.is_ok());
+        assert_eq!(result_2, Err(HostError::NoRoomForFile(file_2)));
+        assert_eq!(
+            host.pending_files,
+            HashMap::from([(String::from("200"), file_1)])
+        );
     }
 
     #[test]
-    fn test_has_available_space() {
-        unimplemented!()
+    fn test_uptake_pending_files() {
+        let mut host = Host::new("host_1", 2);
+        let file_1 = File::new("200");
+        let file_2 = File::new("201");
+
+        host.insert_file(file_1.clone());
+        let result_insert_pending = host.insert_pending_file(file_2.clone());
+
+        assert!(result_insert_pending.is_ok());
+        assert_eq!(
+            host.files,
+            HashMap::from([(String::from("200"), file_1.clone()),])
+        );
+        assert_eq!(
+            host.pending_files,
+            HashMap::from([(String::from("201"), file_2.clone()),])
+        );
+
+        host.uptake_pending_files();
+
+        assert!(host.pending_files.is_empty());
+        assert_eq!(
+            host.files,
+            HashMap::from([(String::from("200"), file_1), (String::from("201"), file_2),])
+        );
     }
 }
