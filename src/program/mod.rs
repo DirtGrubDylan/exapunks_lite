@@ -129,6 +129,17 @@ impl Program {
     /// Returns the line number and [`Instruction`] tuple at the current stack index.
     ///
     /// If the stack index is not in the instructions map, then return [`Empty`];
+    pub fn peak_current_instruction(&self) -> Option<(usize, Instruction)> {
+        let result = self.instructions.get(self.stack_index).cloned();
+
+        result
+    }
+
+    /// Returns the line number and [`Instruction`] tuple at the current stack index.
+    ///
+    /// If the stack index is not in the instructions map, then return [`Empty`];
+    ///
+    /// This will increase the stack by 1.
     pub fn get_current_instruction(&mut self) -> Option<(usize, Instruction)> {
         let result = self.instructions.get(self.stack_index).cloned();
 
