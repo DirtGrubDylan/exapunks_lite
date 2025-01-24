@@ -17,7 +17,7 @@ pub enum AccessMode {
 #[derive(Debug, PartialEq, Clone)]
 #[allow(clippy::module_name_repetitions)]
 pub struct HardwareRegister {
-    id: String,
+    pub id: String,
     values: VecDeque<Value>,
     mode: AccessMode,
 }
