@@ -85,42 +85,74 @@ impl Exa {
     ///
     /// # Panics
     ///
-    /// This shouldn't panic, but I am creating [`BasicRegister`]s and unwrapping them.
+    /// This shouldn't panic, but [`BasicRegister`]s are created and unwrapped.
     pub fn new(
         id: &str,
         program: Program,
-        host: Rc<RefCell<Host>>,
-        file_generator: Rc<RefCell<Generator>>,
+        host: &Rc<RefCell<Host>>,
+        file_generator: &Rc<RefCell<Generator>>,
     ) -> Self {
         Exa {
             id: id.to_string(),
             x_register: BasicRegister::new_with_value("X", &Value::Number(0)).unwrap(),
             y_register: BasicRegister::new_with_value("Y", &Value::Number(0)).unwrap(),
-            f_register: BasicRegister::new_with_value("F", &Value::Number(0)).unwrap(),
-            host: Rc::downgrade(&host),
+            f_register: BasicRegister::new("F"),
+            host: Rc::downgrade(host),
             program,
             file: None,
-            file_generator: Rc::downgrade(&file_generator),
+            file_generator: Rc::downgrade(file_generator),
             next_exa_id: 0,
             communication_mode: CommunicationMode::Global,
             state: ExaState::Running,
         }
     }
 
-    /// Returns the next [`Instruction`] and its index, if possible.
-    pub fn get_next_instruction(&self) -> Option<(usize, Instruction)> {
-        unimplemented!()
+    /// Creates a new Exa with a given id, [`Host`], file [`Generator`], and file path.
+    ///
+    /// # Panics
+    ///
+    /// If the file path does not exist **OR** does not contain a valid [`Program`].
+    pub fn new_from_file(
+        id: &str,
+        program_file_path: &str,
+        host: &Rc<RefCell<Host>>,
+        file_generator: &Rc<RefCell<Generator>>,
+    ) -> Self {
+        let program = Program::new_from_file(program_file_path).unwrap();
+
+        Exa {
+            id: id.to_string(),
+            x_register: BasicRegister::new_with_value("X", &Value::Number(0)).unwrap(),
+            y_register: BasicRegister::new_with_value("Y", &Value::Number(0)).unwrap(),
+            f_register: BasicRegister::new("F"),
+            host: Rc::downgrade(host),
+            program,
+            file: None,
+            file_generator: Rc::downgrade(file_generator),
+            next_exa_id: 0,
+            communication_mode: CommunicationMode::Global,
+            state: ExaState::Running,
+        }
     }
 
-    /// Executes the next [`Instruction`] and returns nothing or the [`ExecutionResponseError`].
+    /// Returns the current [`Instruction`] and its index, if possible.
     ///
-    /// This method will call any of the various private methods to execute the next [`Instruction`]
-    /// on the [`Program`] stack.
+    /// This will not increase the [`Program`] stack.
+    pub fn peak_current_instruction(&self) -> Option<(usize, Instruction)> {
+        self.program.peak_current_instruction()
+    }
+
+    /// Executes the current [`Instruction`] and returns nothing or the [`ExecutionResponseError`].
+    ///
+    /// This will increase the [`Program`] stack by 1.
+    ///
+    /// This method will call any of the various private methods to execute the current
+    /// [`Instruction`] on the [`Program`] stack.
     ///
     /// # Errors
     ///
     /// See [`ExecutionResponseError`].
-    pub fn execute_next_instruction(&mut self) -> Result<(), ExecutionResponseError> {
+    pub fn execute_current_instruction(&mut self) -> Result<(), ExecutionResponseError> {
         unimplemented!()
     }
 
@@ -145,156 +177,197 @@ mod tests {
     use crate::file::id_generator::IdGenerator;
 
     #[test]
-    fn test_get_next_instruction() {
-        let program = Program::new_from_file("test_files/simple_program.exa").unwrap();
+    fn test_peak_current_instruction() {
         let host = Rc::new(RefCell::new(Host::new("host", 9)));
         let id_generator = Rc::new(RefCell::new(IdGenerator::default()));
+        let file_generator = Rc::new(RefCell::new(Generator::new(&id_generator)));
 
+        let mut exa = Exa::new_from_file(
+            "XA",
+            "test_files/simple_program.exa",
+            &host,
+            &file_generator,
+        );
+
+        let expected = vec![
+            (0, Instruction::Link(Value::Number(800))),
+            (
+                2,
+                Instruction::Copy(Value::Number(4), Value::RegisterId(String::from("X"))),
+            ),
+            (
+                6,
+                Instruction::Subtract(
+                    Value::RegisterId(String::from("X")),
+                    Value::Number(1),
+                    Value::RegisterId(String::from("X")),
+                ),
+            ),
+            (
+                7,
+                Instruction::TestEqual(Value::RegisterId(String::from("X")), Value::Number(0)),
+            ),
+            (
+                8,
+                Instruction::JumpIfFalse(Value::LabelId(String::from("THIS_LABEL"))),
+            ),
+            (10, Instruction::Halt),
+        ];
+
+        let mut results = Vec::new();
+
+        while let Some(instruction) = exa.peak_current_instruction() {
+            results.push(instruction);
+
+            exa.program.get_current_instruction();
+        }
+
+        assert!(exa.peak_current_instruction().is_none());
+        assert_eq!(results, expected);
+    }
+
+    #[test]
+    fn test_execute_current_instruction_copy() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_copy() {
+    fn test_execute_current_instruction_copy_noop_hardware_register_readonly() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_copy_noop_hardware_register_readonly() {
+    fn test_execute_current_instruction_copy_failure_hardware_register_writeonly() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_copy_failure_hardware_register_writeonly() {
+    fn test_execute_current_instruction_add() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_add() {
+    fn test_execute_current_instruction_add_failure() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_add_failure() {
+    fn test_execute_current_instruction_test() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_test() {
+    fn test_execute_current_instruction_halt() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_halt() {
+    fn test_execute_current_instruction_link_success() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_link_success() {
+    fn test_execute_current_instruction_link_failure_no_link_exists() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_link_failure_no_link_exists() {
+    fn test_execute_current_instruction_link_failure_waiting_for_link_availability() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_link_failure_waiting_for_link_availability() {
+    fn test_execute_current_instruction_link_failure_waiting_for_host_availability() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_link_failure_waiting_for_host_availability() {
+    fn test_execute_current_instruction_host() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_host() {
+    fn test_execute_current_instruction_void_f() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_void_f() {
+    fn test_execute_current_instruction_void_m() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_void_m() {
+    fn test_execute_current_instruction_testeof() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_testeof() {
+    fn test_execute_current_instruction_jump() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_jump() {
+    fn test_execute_current_instruction_replicate() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_replicate() {
+    fn test_execute_current_instruction_kill() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_kill() {
+    fn test_execute_current_instruction_mode() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_mode() {
+    fn test_execute_current_instruction_test_mrd() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_test_mrd() {
+    fn test_execute_current_instruction_make() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_make() {
+    fn test_execute_current_instruction_grab_success() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_grab_success() {
+    fn test_execute_current_instruction_grab_failure_no_file() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_grab_failure_no_file() {
+    fn test_execute_current_instruction_grab_failure_waiting() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_grab_failure_waiting() {
+    fn test_execute_current_instruction_file() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_file() {
+    fn test_execute_current_instruction_seek() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_seek() {
+    fn test_execute_current_instruction_drop_success() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_drop_success() {
+    fn test_execute_current_instruction_drop_waiting() {
         unimplemented!()
     }
 
     #[test]
-    fn test_execute_next_instruction_drop_waiting() {
-        unimplemented!()
-    }
-
-    #[test]
-    fn test_execute_next_instruction_rand() {
+    fn test_execute_current_instruction_rand() {
         unimplemented!()
     }
 
