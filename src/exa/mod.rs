@@ -158,7 +158,11 @@ impl Exa {
 
     /// Returns the next id for the replicated Exa.
     pub fn next_replicated_exa_id(&mut self) -> String {
-        unimplemented!()
+        let result = self.id.clone() + ":" + &self.next_exa_id.to_string();
+
+        self.next_exa_id += 1;
+
+        result
     }
 
     /// Takes the [`File`] the Exa is holding, if possible.
@@ -373,6 +377,24 @@ mod tests {
 
     #[test]
     fn test_next_replicated_exa_id() {
-        unimplemented!()
+        let host = Rc::new(RefCell::new(Host::new("host", 9)));
+        let id_generator = Rc::new(RefCell::new(IdGenerator::default()));
+        let file_generator = Rc::new(RefCell::new(Generator::new(&id_generator)));
+
+        let mut exa = Exa::new_from_file(
+            "XA:0",
+            "test_files/simple_program.exa",
+            &host,
+            &file_generator,
+        );
+
+        let expected_1 = String::from("XA:0:0");
+        let expected_2 = String::from("XA:0:1");
+
+        let result_1 = exa.next_replicated_exa_id();
+        let result_2 = exa.next_replicated_exa_id();
+
+        assert_eq!(result_1, expected_1);
+        assert_eq!(result_2, expected_2);
     }
 }
