@@ -37,6 +37,7 @@ pub struct Host {
 
 impl Host {
     /// Creates a new Host with a given id and occupancy limit.
+    #[must_use]
     pub fn new(id: &str, occupancy_limit: usize) -> Self {
         Host {
             id: id.to_string(),
@@ -184,11 +185,13 @@ impl Host {
     }
 
     /// Indicates if a [`File`] exists for a given file id (even if it's pending).
+    #[must_use]
     pub fn has_file(&self, file_id: &str) -> bool {
         self.files.contains_key(file_id) || self.pending_files.contains_key(file_id)
     }
 
     /// Indicates if a [`Link`] for a given gate id.
+    #[must_use]
     pub fn has_link(&self, gate_id: &str) -> bool {
         self.links.contains_key(gate_id)
     }
@@ -220,8 +223,10 @@ impl Host {
             .filter(|host| host.borrow().has_available_space())
             .map(|host| Rc::downgrade(&host));
 
-        if destination_host.is_some() {
-            available_link.unwrap().borrow_mut().occupied = true;
+        if let Some(link) = available_link {
+            if destination_host.is_some() {
+                link.borrow_mut().occupied = true;
+            }
         }
 
         Ok(destination_host)
@@ -231,6 +236,7 @@ impl Host {
     ///
     /// This is determined by the number of occupying exa ids, number of files (pending included),
     /// number of hardware registers, and system exas compared to the hosts occupancy limit.
+    #[must_use]
     pub fn has_available_space(&self) -> bool {
         let remaining_space = self
             .occupancy_limit
