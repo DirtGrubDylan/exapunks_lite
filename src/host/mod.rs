@@ -184,6 +184,12 @@ impl Host {
         self.files.extend(self.pending_files.drain());
     }
 
+    /// Indicates if a given [`Exa`] id is in the set of occupying Exa ids.
+    #[must_use]
+    pub fn has_occupying_exa_id(&self, exa_id: &str) -> bool {
+        self.occupying_exa_ids.contains(exa_id)
+    }
+
     /// Indicates if a [`File`] exists for a given file id (even if it's pending).
     #[must_use]
     pub fn has_file(&self, file_id: &str) -> bool {
